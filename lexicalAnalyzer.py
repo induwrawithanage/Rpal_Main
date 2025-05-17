@@ -1,6 +1,7 @@
 import re
 from _token import Token
 
+# This function tokenize the give any character input.
 def tokenize(characters):
     import re
 
@@ -96,4 +97,53 @@ def tokenize(characters):
             tokens[i] = Token(tokens[i], token_names[i], line_numbers[i])
 
     return tokens
+
+
+# This function do the screening part.
+def screen(input_file_path):
+    # List of reserved keywords in RPAL
+    rpal_keywords = [
+        "let", "in", "where", "rec", "fn", "aug", "or", "not",
+        "gr", "ge", "ls", "le", "eq", "ne", "true", "false",
+        "nil", "dummy", "within", "and"
+    ]
+    
+    character_buffer = []
+    scanned_tokens = []
+    has_invalid_token = False
+    first_invalid_token = None
+    
+    try:
+        with open(input_file_path, 'r') as file:
+            for line in file:
+                for char in line:
+                    character_buffer.append(char)
+            scanned_tokens = tokenize(character_buffer)
+
+    except Exception as error:
+        print("An error occurred:", error)
+        exit(1)
+    
+    # Traverse token list in reverse to handle deletions correctly
+    for i in range(len(scanned_tokens) - 1, -1, -1):
+        current_token = scanned_tokens[i]
+        
+        # Convert identifiers that match keywords into keyword tokens
+        if current_token.type == "<IDENTIFIER>" and current_token.content in rpal_keywords:
+            current_token.make_keyword()
+        
+        # Remove unnecessary tokens like <DELETE> and newline characters
+        if current_token.type == "<DELETE>" or current_token.content == "\n":            
+            scanned_tokens.remove(current_token)
+        
+        # Capture the first invalid token found
+        if current_token.type == "<INVALID>" and not has_invalid_token:
+            first_invalid_token = current_token
+            has_invalid_token = True
+            
+    # Ensure the last token is marked correctly
+    if len(scanned_tokens) > 0:
+        scanned_tokens[-1].is_last_token = True
+        
+    return scanned_tokens, has_invalid_token, first_invalid_token
 
