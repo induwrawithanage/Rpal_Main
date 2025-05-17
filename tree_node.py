@@ -8,6 +8,6 @@ def preorder_traversal(node):
     if node is None:
         return
     print("." * node.level + str(node.value))
-    for child in node.children:
-        child.level = node.level + 1
-        preorder_traversal(child)
+    for cd in node.children:
+        cd.level = node.level + 1
+        preorder_traversal(cd)
