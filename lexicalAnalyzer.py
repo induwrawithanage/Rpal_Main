@@ -1,7 +1,6 @@
 import re
-from _token import Token
+from Token import Token
 
-# This function tokenize the give any character input.
 def tokenize(characters):
     import re
 
@@ -82,24 +81,26 @@ def tokenize(characters):
 
     for i in range(number_of_tokens):
         if i == 0:
-            tokens[i] = Token(tokens[i], token_names[i], line_numbers[i])
-            tokens[i].make_first_token()
+            tokens[i] = Token(tokens[i], token_names[i])
+            tokens[i].addLine(line_numbers[i])
+            tokens[i].genarateFastToken()
         elif i == number_of_tokens - 1:
             if tokens[i] == '\n':
-                tokens[i - 1].make_last_token()
+                tokens[i - 1].genarateLastToken()
                 tokens.pop()
                 token_names.pop()
                 line_numbers.pop()
             else:
-                tokens[i] = Token(tokens[i], token_names[i], line_numbers[i])
-                tokens[i].make_last_token()
+                tokens[i] = Token(tokens[i], token_names[i])
+                tokens[i].addLine(line_numbers[i])
+                tokens[i].genarateLastToken()
         else:
-            tokens[i] = Token(tokens[i], token_names[i], line_numbers[i])
+            tokens[i] = Token(tokens[i], token_names[i])
+            tokens[i].addLine(line_numbers[i])
 
     return tokens
 
 
-# This function do the screening part.
 def screen(input_file_path):
     # List of reserved keywords in RPAL
     rpal_keywords = [
@@ -130,7 +131,7 @@ def screen(input_file_path):
         
         # Convert identifiers that match keywords into keyword tokens
         if current_token.type == "<IDENTIFIER>" and current_token.content in rpal_keywords:
-            current_token.make_keyword()
+            current_token.makeKeyword()
         
         # Remove unnecessary tokens like <DELETE> and newline characters
         if current_token.type == "<DELETE>" or current_token.content == "\n":            
@@ -146,4 +147,3 @@ def screen(input_file_path):
         scanned_tokens[-1].is_last_token = True
         
     return scanned_tokens, has_invalid_token, first_invalid_token
-
