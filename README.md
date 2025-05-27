@@ -1,3 +1,6 @@
+## Rpal poject how work
+### Open the project on Text Editor(VS Code) / Optional
+### Write these commands on the terminal to run the project.(Open the terminal on the project project folder.) 
 ### ﻿ Print the input program :
 python .\myrpal.py -l file_name
 ### Print the output of the program :
