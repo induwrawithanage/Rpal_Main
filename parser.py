@@ -1,5 +1,5 @@
-from lexical_analyzer import screen
-from structures import Stack
+from lexicalAnalyzer import screen
+from Structures import Stack
 from TreeNode import *
 
 stack = Stack("AST")
@@ -14,7 +14,7 @@ def parse(input_file):
             exit(1)
         case False:
             E()
-            match stack.is_empty():
+            match stack.Empty():
                 case False:
                     root = stack.pop()
                 case True:
@@ -29,7 +29,7 @@ def constructAST(node_value, child_count):
     
     index = 0
     while index < child_count:
-        match stack.is_empty():
+        match stack.Empty():
             case True:
                 print("Stack is empty")
                 exit(1)
@@ -96,7 +96,7 @@ def E():
         case _:
             Ew()
 
-### --------------------------------------------------------------
+##############################################################
 def Ew():
     T()    
     match tokens[0].content:
@@ -107,7 +107,7 @@ def Ew():
         case _:
             pass
 
-### --------------------------------------------------------------
+##############################################################
 def T():
     Ta()
     n = 0
@@ -118,7 +118,7 @@ def T():
     if n > 0:
         constructAST("tau", n + 1)
 
-### --------------------------------------------------------------      
+##############################################################      
 def Ta():
     Tc()
     for _ in iter(lambda: tokens[0].content == "aug", False):
@@ -126,7 +126,7 @@ def Ta():
         Tc()
         constructAST("aug", 2)
 
-### --------------------------------------------------------------
+##############################################################
 def Tc():
     B()
     match tokens[0].content:
@@ -143,7 +143,7 @@ def Tc():
         case _:
             pass
 
-### --------------------------------------------------------------
+##############################################################
 def B():
     Bt()
     for _ in iter(lambda: tokens[0].content == "or", False):
@@ -151,7 +151,7 @@ def B():
         Bt()
         constructAST("or", 2)
 
-### --------------------------------------------------------------
+##############################################################
 def Bt():
     Bs()
     for _ in iter(lambda: tokens[0].content == "&", False):
@@ -159,7 +159,7 @@ def Bt():
         Bs()
         constructAST("&", 2)
 
-### --------------------------------------------------------------
+##############################################################
 def Bs():
     match tokens[0].content:
         case "not":
@@ -169,7 +169,7 @@ def Bs():
         case _:
             Bp()
 
-### --------------------------------------------------------------
+##############################################################
 def Bp():
     A()
     match tokens[0].content:
@@ -200,7 +200,7 @@ def Bp():
         case _:
             pass
 
-### --------------------------------------------------------------
+##############################################################
 def A():
     match tokens[0].content:
         case "+":
@@ -223,7 +223,7 @@ def A():
                 At()
                 constructAST("-", 2)
 
-### --------------------------------------------------------------
+##############################################################
 def At():
     Af()
     for _ in iter(lambda: tokens[0].content in ["*", "/"], False):
@@ -237,7 +237,7 @@ def At():
                 Af()
                 constructAST("/", 2)
 
-#### --------------------------------------------------------------
+##############################################################
 def Af():
     Ap()
     match tokens[0].content:
@@ -248,7 +248,7 @@ def Af():
         case _:
             pass
 
-### --------------------------------------------------------------    
+##############################################################    
 def Ap():
     R()
     for _ in iter(lambda: tokens[0].content == "@", False):
@@ -262,14 +262,14 @@ def Ap():
             print("Syntax error in line " + str(tokens[0].line) + ": Identifier expected")
             exit(1)
 
-### --------------------------------------------------------------
+##############################################################
 def R():
     Rn()
     for _ in iter(lambda: tokens[0].type in ["<IDENTIFIER>", "<INTEGER>", "<STRING>"] or tokens[0].content in ["true", "false", "nil", "(", "dummy"], False):
         Rn()
         constructAST("gamma", 2)
 
-### --------------------------------------------------------------
+##############################################################
 def Rn():
     value = tokens[0].content
     match tokens[0].type:
@@ -299,7 +299,7 @@ def Rn():
                     print("Syntax error in line " + str(tokens[0].line) + ": Identifier, Integer, String, 'true', 'false', 'nil', 'dummy' or '(' expected")
                     exit(1)
 
-### --------------------------------------------------------------
+##############################################################
 def D():
     Da()
     match tokens[0].content:
@@ -310,7 +310,7 @@ def D():
         case _:
             pass
 
-### --------------------------------------------------------------
+##############################################################
 def Da():
     Dr()
     n = 0
@@ -321,7 +321,7 @@ def Da():
     if n > 0:
         constructAST("and", n + 1)
 
-### --------------------------------------------------------------
+##############################################################
 def Dr():
     match tokens[0].content:
         case "rec":
@@ -331,7 +331,7 @@ def Dr():
         case _:
             Db()
 
-### --------------------------------------------------------------
+##############################################################
 def Db():
     value = tokens[0].content
     match value:
@@ -370,7 +370,7 @@ def Db():
             print("Syntax error in line " + str(tokens[0].line) + ": '(' or Identifier expected")
             exit(1)
 
-### --------------------------------------------------------------
+##############################################################
 def Vb():
     value_1 = tokens[0].content
     match tokens[0].type:
@@ -400,7 +400,7 @@ def Vb():
             print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
             exit(1)
 
-###     --------------------------------------------------------------
+##############################################################
 def Vl():
     n = 0
     for _ in iter(lambda: tokens[0].content == ",", False):
