@@ -1,498 +1,418 @@
-from lexicalAnalyzer import screen
-from stack import Stack
-from tree_node import *
-from token import Token
-# A stack containing nodes
+from lexical_analyzer import screen
+from structures import Stack
+from TreeNode import *
+
 stack = Stack("AST")
 
-
-# This function is used to print the abstract syntax tree in preorder traversal.    
-def print_tree(root):
-    preorder_traversal(root)
-
-# This function is used to build the abstract syntax tree.
-def build_tree(value, num_children):
-    node = Tree_Node(value)
-    node.children = [None] * num_children
-    
-    for i in range (0, num_children):
-        if stack.is_empty():
-            print("Stack is empty")
-            exit(1)
-        node.children[num_children - i - 1] = stack.pop()
-        
-    stack.push(node)
- 
- 
-# This function is used to read the expected token. 
-def read(expected_token):
-    if tokens[0].content != expected_token:
-        print("Syntax error in line " + str(tokens[0].line) + ": Expected " + str(expected_token) + " but got " + str(tokens[0].content))
-        exit(1)
-     
-    if not tokens[0].is_last_token:
-        del tokens[0]   
-        
-    else:
-        if tokens[0].type != ")":
-            tokens[0].type = ")"    
-            
-
-def parse(file_name):
+def parse(input_file):
     global tokens
-    tokens, invalid_flag, invalid_token = screen(file_name)
+    tokens, has_invalid, invalid_token = screen(input_file)
+    # If there are invalid tokens, parsing cannot proceed.
+    match has_invalid:
+        case True:
+            print("Invalid token present")
+            exit(1)
+        case False:
+            E()
+            match stack.is_empty():
+                case False:
+                    root = stack.pop()
+                case True:
+                    print("Stack is empty")
+                    exit(1)
+            return root
+
+# This function builds the abstract syntax tree.
+def constructAST(node_value, child_count):
+    ast_node = TreeNode(node_value)
+    ast_node.childList = [None] * child_count
     
-    # If there are invalid tokens, we cannot proceed with the parsing.
-    if invalid_flag:
-        print("Invalid token present in line " + str(invalid_token.line) + ": " + str(invalid_token.content))
-        exit(1)
-    
-    procedure_E()
-    
-    if not stack.is_empty():
-        root = stack.pop()
-    else:
-        print("Stack is empty")
-        exit(1)
+    index = 0
+    while index < child_count:
+        match stack.is_empty():
+            case True:
+                print("Stack is empty")
+                exit(1)
+            case False:
+                ast_node.childList[child_count - index - 1] = stack.pop()
+        index += 1
         
-    return root
- 
+    stack.push(ast_node)
+
+
+# This function checks and processes the expected token.
+def consumeToken(expected_value):
+    match tokens[0].content == expected_value:
+        case False:
+            print("Syntax error")
+            exit(1)
+        case True:
+            match tokens[0].is_last_token:
+                case False:
+                    del tokens[0]
+                case True:
+                    match tokens[0].type == ")":
+                        case False:
+                            tokens[0].type = ")"
+                        case True:
+                            pass
+
+# This function prints the abstract syntax tree in preorder traversal.
+def printAST(tree_root):
+    preorderTraversal(tree_root)
+
+
+
 ############################################################## 
-def procedure_E():      
-    # E -> 'let' D 'in' E 
-    if tokens[0].content == "let":
-        read("let")
-        procedure_D()
-        
-        if tokens[0].content == "in":
-            read("in")
-            procedure_E()
-            build_tree("let", 2)
-        else:
-            print("Syntax error in line " + str(tokens[0].line) + ": 'in' expected")
-            exit(1)
-    
-    # E -> 'fn'  Vb+ '.' E    
-    elif tokens[0].content == "fn":
-        read("fn")
-        n = 0
+def E():
+    switch_token = tokens[0].content
+    match switch_token:
+        case "let":
+            consumeToken("let")
+            D()
+            if tokens[0].content == "in":
+                consumeToken("in")
+                E()
+                constructAST("let", 2)
+            else:
+                print("Syntax error in line " + str(tokens[0].line) + ": 'in' expected")
+                exit(1)
+        case "fn":
+            consumeToken("fn")
+            n = 0
+            for _ in iter(lambda: tokens[0].type in ["<IDENTIFIER>", "("], False):
+                Vb()
+                n += 1
+            if n == 0:
+                print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
+                exit(1)
+            if tokens[0].content == ".":
+                consumeToken(".")
+                E()
+                constructAST("lambda", n + 1)
+            else:
+                print("Syntax error in line " + str(tokens[0].line) + ": '.' expected")
+                exit(1)
+        case _:
+            Ew()
 
-        while tokens[0].type == "<IDENTIFIER>" or tokens[0].type == "(": 
-            procedure_Vb()
-            n += 1
-            
-        if n == 0:
-            print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
-            exit(1)
-            
-        if tokens[0].content == ".":
-            read(".")
-            procedure_E()
-            build_tree("lambda", n + 1)
-        else:
-            print("Syntax error in line " + str(tokens[0].line) + ": '.' expected")
-            exit(1)
-             
-    # E  ->  Ew    
-    else:
-        procedure_Ew()
+### --------------------------------------------------------------
+def Ew():
+    T()    
+    match tokens[0].content:
+        case "where":
+            consumeToken("where")
+            Dr()
+            constructAST("where", 2)
+        case _:
+            pass
 
-##############################################################
-def procedure_Ew():
-    # Ew -> T    
-    procedure_T()
-    
-    # Ew -> T 'where' Dr   
-    if tokens[0].content == "where":
-        read("where")
-        procedure_Dr()
-        build_tree("where", 2)  
-        
-##############################################################
-def procedure_T():     
-    # T -> Ta
-    procedure_Ta()   
-    # T -> Ta (','  Ta)+
+### --------------------------------------------------------------
+def T():
+    Ta()
     n = 0
-    while tokens[0].content == ",":
-        read(",")
-        procedure_Ta()
-        n += 1      
+    for _ in iter(lambda: tokens[0].content == ",", False):
+        consumeToken(",")
+        Ta()
+        n += 1
     if n > 0:
-        build_tree("tau", n+1)      
-##############################################################      
-def procedure_Ta():  
-    # Ta -> Tc
-    procedure_Tc()
-    
-    # Ta -> Ta 'aug' Tc 
-    while tokens[0].content == "aug":
-        read("aug")
-        procedure_Tc()
-        build_tree("aug", 2)  
-        
-##############################################################
-def procedure_Tc():   
-    # Tc -> B
-    procedure_B()
-    
-    # Tc -> B '->' Tc '|' Tc
-    if tokens[0].content == "->":  
-        read("->")
-        procedure_Tc()
-        
-        if tokens[0].content == "|":
-            read("|")
-            procedure_Tc()
-            build_tree("->", 3)
-        else:
-            print("Syntax error in line " + str(tokens[0].line) + ": '|' expected")
-            exit(1)
-            
-##############################################################
-def procedure_B():
-    # B -> Bt
-    procedure_Bt()
-    
-    # B -> B 'or' Bt
-    while tokens[0].content == "or":
-        read("or")
-        procedure_Bt()
-        build_tree("or", 2) 
+        constructAST("tau", n + 1)
 
-##############################################################
-def procedure_Bt():    
-    # Bt -> Bs
-    procedure_Bs()
-    
-    # Bt -> Bt '&' Bs
-    while tokens[0].content == "&":
-        read("&")
-        procedure_Bs()
-        build_tree("&", 2)
-        
-##############################################################
-def procedure_Bs():
-    # Bs -> 'not' Bp
-    if tokens[0].content == "not":
-        read("not")
-        procedure_Bp()
-        build_tree("not", 1)
-        
-    # Bs -> Bp
-    else:
-        procedure_Bp()
-        
-##############################################################
-def procedure_Bp():           
-    # Bp -> A
-    procedure_A()
-    
-    # Bp -> A ('gr' | '>' ) A
-    if tokens[0].content == "gr" or tokens[0].content == ">":
-        read(tokens[0].content)
-        procedure_A()
-        build_tree("gr", 2)
-        
-    # Bp -> A ('ge' | '>=' ) A
-    elif tokens[0].content == "ge" or tokens[0].content == ">=":
-        read(tokens[0].content)
-        procedure_A()
-        build_tree("ge", 2)
-        
-    # Bp -> A ('ls' | '<' ) A
-    elif tokens[0].content == "ls" or tokens[0].content == "<":
-        read(tokens[0].content)
-        procedure_A()
-        build_tree("ls", 2)
-        
-    # Bp -> A ('le' | '<=' ) A
-    elif tokens[0].content == "le" or tokens[0].content == "<=":
-        read(tokens[0].content)
-        procedure_A()
-        build_tree("le", 2)
-        
-    # Bp -> A 'eq' A
-    elif tokens[0].content == "eq":
-        read("eq")
-        procedure_A()
-        build_tree("eq", 2)
-        
-    # Bp -> A 'ne' A
-    elif tokens[0].content == "ne":
-        read("ne")
-        procedure_A()
-        build_tree("ne", 2)
+### --------------------------------------------------------------      
+def Ta():
+    Tc()
+    for _ in iter(lambda: tokens[0].content == "aug", False):
+        consumeToken("aug")
+        Tc()
+        constructAST("aug", 2)
 
-##############################################################
-def procedure_A():
-    # A -> '+' At
-    if tokens[0].content=="+":
-        read("+")
-        procedure_At()
-        
-    # A -> '-' At
-    elif tokens[0].content=="-":
-        read("-")
-        procedure_At()
-        build_tree("neg", 1)
-        
-    # A -> At
-    else:
-        procedure_At()
-        
-    while tokens[0].content in ["+", "-"]:
-        # A -> A '+' At
-        if tokens[0].content=="+":
-            read("+")
-            procedure_At()
-            build_tree("+", 2)
-            
-        # A -> A '-' At
-        else:
-            read("-")
-            procedure_At()
-            build_tree("-", 2)
-    
-##############################################################
-def procedure_At():
-    # At -> Af
-    procedure_Af()
-    
-    while tokens[0].content in ["*", "/"]:
-        # At -> At '*' Af
-        if tokens[0].content=="*":
-            read("*")
-            procedure_Af()
-            build_tree("*", 2)
-            
-        # At -> At '/' Af
-        else:
-            read("/")
-            procedure_Af()
-            build_tree("/", 2)
+### --------------------------------------------------------------
+def Tc():
+    B()
+    match tokens[0].content:
+        case "->":
+            consumeToken("->")
+            Tc()
+            if tokens[0].content == "|":
+                consumeToken("|")
+                Tc()
+                constructAST("->", 3)
+            else:
+                print("Syntax error in line " + str(tokens[0].line) + ": '|' expected")
+                exit(1)
+        case _:
+            pass
 
-##############################################################
-def procedure_Af():    
-    # Af -> Ap 
-    procedure_Ap()
-    
-    # Af -> Ap '**' Af
-    if tokens[0].content == "**":     
-        read("**")
-        procedure_Af()
-        build_tree("**", 2)
- 
-##############################################################    
-def procedure_Ap():
-    # Ap -> R
-    procedure_R()
-    
-    # Ap -> Ap '@' <IDENTIFIER> R
-    while tokens[0].content == "@":
-        read("@")
-        
+### --------------------------------------------------------------
+def B():
+    Bt()
+    for _ in iter(lambda: tokens[0].content == "or", False):
+        consumeToken("or")
+        Bt()
+        constructAST("or", 2)
+
+### --------------------------------------------------------------
+def Bt():
+    Bs()
+    for _ in iter(lambda: tokens[0].content == "&", False):
+        consumeToken("&")
+        Bs()
+        constructAST("&", 2)
+
+### --------------------------------------------------------------
+def Bs():
+    match tokens[0].content:
+        case "not":
+            consumeToken("not")
+            Bp()
+            constructAST("not", 1)
+        case _:
+            Bp()
+
+### --------------------------------------------------------------
+def Bp():
+    A()
+    match tokens[0].content:
+        case "gr" | ">":
+            consumeToken(tokens[0].content)
+            A()
+            constructAST("gr", 2)
+        case "ge" | ">=":
+            consumeToken(tokens[0].content)
+            A()
+            constructAST("ge", 2)
+        case "ls" | "<":
+            consumeToken(tokens[0].content)
+            A()
+            constructAST("ls", 2)
+        case "le" | "<=":
+            consumeToken(tokens[0].content)
+            A()
+            constructAST("le", 2)
+        case "eq":
+            consumeToken(tokens[0].content)
+            A()
+            constructAST("eq", 2)
+        case "ne":
+            consumeToken(tokens[0].content)
+            A()
+            constructAST("ne", 2)
+        case _:
+            pass
+
+### --------------------------------------------------------------
+def A():
+    match tokens[0].content:
+        case "+":
+            consumeToken("+")
+            At()
+        case "-":
+            consumeToken("-")
+            At()
+            constructAST("neg", 1)
+        case _:
+            At()
+    for _ in iter(lambda: tokens[0].content in ["+", "-"], False):
+        match tokens[0].content:
+            case "+":
+                consumeToken("+")
+                At()
+                constructAST("+", 2)
+            case "-":
+                consumeToken("-")
+                At()
+                constructAST("-", 2)
+
+### --------------------------------------------------------------
+def At():
+    Af()
+    for _ in iter(lambda: tokens[0].content in ["*", "/"], False):
+        match tokens[0].content:
+            case "*":
+                consumeToken("*")
+                Af()
+                constructAST("*", 2)
+            case "/":
+                consumeToken("/")
+                Af()
+                constructAST("/", 2)
+
+#### --------------------------------------------------------------
+def Af():
+    Ap()
+    match tokens[0].content:
+        case "**":
+            consumeToken("**")
+            Af()
+            constructAST("**", 2)
+        case _:
+            pass
+
+### --------------------------------------------------------------    
+def Ap():
+    R()
+    for _ in iter(lambda: tokens[0].content == "@", False):
+        consumeToken("@")
         if tokens[0].type == "<IDENTIFIER>":
-            build_tree("<ID:" + tokens[0].content + ">", 0)
-            read(tokens[0].content)
-            procedure_R()
-            build_tree("@", 3)            
+            constructAST("<ID:" + tokens[0].content + ">", 0)
+            consumeToken(tokens[0].content)
+            R()
+            constructAST("@", 3)
         else:
             print("Syntax error in line " + str(tokens[0].line) + ": Identifier expected")
             exit(1)
-    
-##############################################################
-def procedure_R():
-    # R -> Rn
-    procedure_Rn()
-    
-    # R -> R Rn
-    while  tokens[0].type in ["<IDENTIFIER>", "<INTEGER>", "<STRING>"] or tokens[0].content in ["true", "false","nil", "(", "dummy"]: 
-        procedure_Rn()
-        build_tree("gamma", 2)
 
-##############################################################
-def procedure_Rn():   
+### --------------------------------------------------------------
+def R():
+    Rn()
+    for _ in iter(lambda: tokens[0].type in ["<IDENTIFIER>", "<INTEGER>", "<STRING>"] or tokens[0].content in ["true", "false", "nil", "(", "dummy"], False):
+        Rn()
+        constructAST("gamma", 2)
+
+### --------------------------------------------------------------
+def Rn():
     value = tokens[0].content
-    
-    # Rn -> <IDENTIFIER>
-    if tokens[0].type == "<IDENTIFIER>":
-        read(value)
-        build_tree("<ID:" + value + ">", 0)
-    
-    # Rn -> <INTEGER>    
-    elif tokens[0].type == "<INTEGER>":
-        read(value)
-        build_tree("<INT:" + value + ">", 0)
-        
-    # Rn -> <STRING>    
-    elif tokens[0].type == "<STRING>":
-        read(value)
-        build_tree("<STR:" + value + ">", 0)
-        
-    # Rn -> 'true'
-    #    -> 'false'
-    #    -> 'nil'
-    #    -> 'dummy'    
-    elif value in ["true", "false", "nil", "dummy"]:
-        read(value)
-        build_tree("<" + value + ">", 0)
-      
-    # Rn -> '(' E ')'    
-    elif value == "(":
-        read("(")
-        procedure_E()
-        
-        if tokens[0].content == ")":     
-            read(")")
-        else:
-            print("Syntax error in line " + str(tokens[0].line) + ": ')' expected")
-            exit(1)
-            
-    else:
-        print("Syntax error in line " + str(tokens[0].line) + ": Identifier, Integer, String, 'true', 'false', 'nil', 'dummy' or '(' expected")
-        exit(1)
+    match tokens[0].type:
+        case "<IDENTIFIER>":
+            consumeToken(value)
+            constructAST("<ID:" + value + ">", 0)
+        case "<INTEGER>":
+            consumeToken(value)
+            constructAST("<INT:" + value + ">", 0)
+        case "<STRING>":
+            consumeToken(value)
+            constructAST("<STR:" + value + ">", 0)
+        case _:
+            match value:
+                case "true" | "false" | "nil" | "dummy":
+                    consumeToken(value)
+                    constructAST("<" + value + ">", 0)
+                case "(":
+                    consumeToken("(")
+                    E()
+                    if tokens[0].content == ")":
+                        consumeToken(")")
+                    else:
+                        print("Syntax error in line " + str(tokens[0].line) + ": ')' expected")
+                        exit(1)
+                case _:
+                    print("Syntax error in line " + str(tokens[0].line) + ": Identifier, Integer, String, 'true', 'false', 'nil', 'dummy' or '(' expected")
+                    exit(1)
 
-##############################################################
-def procedure_D():
-    # D -> Da
-    procedure_Da()
-    
-    # D -> Da 'within' D
-    if tokens[0].content == "within":
-        read("within")
-        procedure_D()
-        build_tree("within", 2)
-    
-##############################################################
-def procedure_Da():
-    # Da -> Dr
-    procedure_Dr()
-    
-    # Da -> Dr ('and' Dr)+
+### --------------------------------------------------------------
+def D():
+    Da()
+    match tokens[0].content:
+        case "within":
+            consumeToken("within")
+            D()
+            constructAST("within", 2)
+        case _:
+            pass
+
+### --------------------------------------------------------------
+def Da():
+    Dr()
     n = 0
-    while tokens[0].content == "and":
-        read("and")
-        procedure_Dr()
+    for _ in iter(lambda: tokens[0].content == "and", False):
+        consumeToken("and")
+        Dr()
         n += 1
-        
-    if n > 0:  
-        build_tree("and", n + 1)
-    
-##############################################################
-def procedure_Dr():
-    # Dr -> 'rec' Db
-    if tokens[0].content == "rec":
-        read("rec")
-        procedure_Db()
-        build_tree("rec", 1)
-        
-    # Dr -> Db
-    else:
-        procedure_Db()
-    
-##############################################################
-def procedure_Db():    
+    if n > 0:
+        constructAST("and", n + 1)
+
+### --------------------------------------------------------------
+def Dr():
+    match tokens[0].content:
+        case "rec":
+            consumeToken("rec")
+            Db()
+            constructAST("rec", 1)
+        case _:
+            Db()
+
+### --------------------------------------------------------------
+def Db():
     value = tokens[0].content
-    
-    # Db -> '(' D ')'
-    if value == "(":
-        read("(")
-        procedure_D()
-        
-        if tokens[0].content == ")":
-            read(")")
-        else:
-            print("Syntax error in line " + str(tokens[0].line) + ": ')' expected")
-            exit(1)
-
-    elif tokens[0].type == "<IDENTIFIER>":
-        read(value)
-        build_tree("<ID:" + value + ">", 0)  
-
-        # Db -> <IDENTIFIER> Vb+ '=' E
-        if tokens[0].content in [",", "="]:  
-            procedure_Vl()
-            read("=")
-            procedure_E()
-            build_tree("=", 2)
-        
-        # Db -> Vl '=' E
-        else: 
-            n = 0
-        
-            while tokens[0].type == "<IDENTIFIER>" or tokens[0].type == "(":
-                procedure_Vb()
-                n += 1
-                
-            if n == 0:
-                print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
-                exit(1)    
-                
-            if tokens[0].content == "=":
-                read("=")
-                procedure_E()
-                build_tree("function_form", n + 2)
-            else:
-                print("Syntax error in line " + str(tokens[0].line) + ": '=' expected")
-                exit(1)
-
-##############################################################
-def procedure_Vb(): 
-    # Vb -> <IDENTIFIER>
-    #    -> '(' Vl ')'
-    #    -> '(' ')' 
-    
-    value_1 = tokens[0].content 
-
-    # Vb -> <IDENTIFIER>
-    if tokens[0].type == "<IDENTIFIER>":
-        read(value_1)
-        build_tree("<ID:" + value_1 + ">", 0)     
-        
-    elif value_1 == "(":
-        read("(")
-        
-        value_2 = tokens[0].content 
-        
-        # Vb -> '(' ')'
-        if value_2 == ")":
-            read(")")
-            build_tree("()", 0)
-        
-        # Vb -> '(' Vl ')'
-        elif tokens[0].type == "<IDENTIFIER>": 
-            read(value_2)
-            build_tree("<ID:" + value_2 + ">", 0)    
-            procedure_Vl()
-            
+    match value:
+        case "(":
+            consumeToken("(")
+            D()
             if tokens[0].content == ")":
-                read(")")
+                consumeToken(")")
             else:
                 print("Syntax error in line " + str(tokens[0].line) + ": ')' expected")
                 exit(1)
-        else:
-            print("Syntax error in line " + str(tokens[0].line) + ": Identifier or ')' expected")
+        case _ if tokens[0].type == "<IDENTIFIER>":
+            consumeToken(value)
+            constructAST("<ID:" + value + ">", 0)
+            if tokens[0].content in [",", "="]:
+                Vl()
+                consumeToken("=")
+                E()
+                constructAST("=", 2)
+            else:
+                n = 0
+                for _ in iter(lambda: tokens[0].type in ["<IDENTIFIER>", "("], False):
+                    Vb()
+                    n += 1
+                if n == 0:
+                    print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
+                    exit(1)
+                if tokens[0].content == "=":
+                    consumeToken("=")
+                    E()
+                    constructAST("function_form", n + 2)
+                else:
+                    print("Syntax error in line " + str(tokens[0].line) + ": '=' expected")
+                    exit(1)
+        case _:
+            print("Syntax error in line " + str(tokens[0].line) + ": '(' or Identifier expected")
             exit(1)
-    else:
-        print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
-        exit(1)
-    
-##############################################################
-def procedure_Vl():
-    # Vl -> <IDENTIFIER> (',' <IDENTIFIER>)*   
+
+### --------------------------------------------------------------
+def Vb():
+    value_1 = tokens[0].content
+    match tokens[0].type:
+        case "<IDENTIFIER>":
+            consumeToken(value_1)
+            constructAST("<ID:" + value_1 + ">", 0)
+        case _ if value_1 == "(":
+            consumeToken("(")
+            value_2 = tokens[0].content
+            match value_2:
+                case ")":
+                    consumeToken(")")
+                    constructAST("()", 0)
+                case _ if tokens[0].type == "<IDENTIFIER>":
+                    consumeToken(value_2)
+                    constructAST("<ID:" + value_2 + ">", 0)
+                    Vl()
+                    if tokens[0].content == ")":
+                        consumeToken(")")
+                    else:
+                        print("Syntax error in line " + str(tokens[0].line) + ": ')' expected")
+                        exit(1)
+                case _:
+                    print("Syntax error in line " + str(tokens[0].line) + ": Identifier or ')' expected")
+                    exit(1)
+        case _:
+            print("Syntax error in line " + str(tokens[0].line) + ": Identifier or '(' expected")
+            exit(1)
+
+###     --------------------------------------------------------------
+def Vl():
     n = 0
-    
-    while tokens[0].content == ",":
-        read(",")
-        
+    for _ in iter(lambda: tokens[0].content == ",", False):
+        consumeToken(",")
         if tokens[0].type == "<IDENTIFIER>":
             value = tokens[0].content
-            read(value)
-            build_tree("<ID:" + value + ">", 0)    
+            consumeToken(value)
+            constructAST("<ID:" + value + ">", 0)
             n += 1
         else:
             print("Syntax error in line " + str(tokens[0].line) + ": Identifier expected")
-            
+            exit(1)
     if n > 0:
-        build_tree(",", n + 1) 
+        constructAST(",", n + 1)
+
