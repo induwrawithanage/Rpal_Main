@@ -1,10 +1,10 @@
-# ﻿● Print the input program :
+### ﻿ Print the input program :
 python .\myrpal.py -l file_name
-● Print the output of the program :
+### Print the output of the program :
 python .\myrpal.py file_name
-● Print the AST of the program :
+### Print the AST of the program :
 python .\myrpal.py -ast file_name
-● Print the ST of the program :
+### Print the ST of the program :
 python .\myrpal.py -st file_name
 
 example-
