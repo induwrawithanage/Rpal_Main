@@ -27,3 +27,17 @@ Navigate to the project folder in your terminal before running commands.
 ### 1. Print the lexical analysis (tokens)
 ```bash
 python myrpal.py -l file_name
+```
+### 2.Run the program and print result
+```bash
+python myrpal.py test_cases/add   
+```
+### 3. Print the Abstract Syntax Tree (AST)
+```bash
+python myrpal.py -ast test_cases/add
+```
+### 4. Print the Standardized Tree (ST)
+```bash
+python myrpal.py -st test_cases/add  
+
+
